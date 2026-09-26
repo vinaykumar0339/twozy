@@ -1,0 +1,35 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && (data.child('hostId').val() === auth.uid || data.child('joinerId').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid && newData.child('status').val() === 'waiting') || (data.exists() && !newData.exists() && data.child('hostId').val() === auth.uid))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['id', 'hostId', 'status', 'createdAt', 'expiresAt']) && newData.child('id').val() === $roomId && newData.child('hostId').isString() && newData.child('hostId').val().length <= 128 && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() <= now + 3600000)",
+        "joinerId": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid && root.child('rooms').child($roomId).child('hostId').exists()",
+          ".validate": "newData.isString() && newData.val().length <= 128"
+        },
+        "status": {
+          ".write": "auth != null && (root.child('rooms').child($roomId).child('hostId').val() === auth.uid || root.child('rooms').child($roomId).child('joinerId').val() === auth.uid)",
+          ".validate": "newData.val() === 'waiting' || newData.val() === 'negotiating' || newData.val() === 'connected' || newData.val() === 'closed'"
+        },
+        "offer": {
+          ".write": "auth != null && root.child('rooms').child($roomId).child('hostId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['type', 'sdp']) && newData.child('type').val() === 'offer' && newData.child('sdp').isString() && newData.child('sdp').val().length < 16384"
+        },
+        "answer": {
+          ".write": "auth != null && root.child('rooms').child($roomId).child('joinerId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['type', 'sdp']) && newData.child('type').val() === 'answer' && newData.child('sdp').isString() && newData.child('sdp').val().length < 16384"
+        },
+        "candidates": {
+          "$owner": {
+            "$candidateId": {
+              ".write": "auth != null && (($owner === 'host' && root.child('rooms').child($roomId).child('hostId').val() === auth.uid) || ($owner === 'joiner' && root.child('rooms').child($roomId).child('joinerId').val() === auth.uid))",
+              ".validate": "newData.hasChildren(['candidate']) && newData.child('candidate').isString() && newData.child('candidate').val().length < 4096"
+            }
+          }
+        }
+      }
+    }
+  }
+}
